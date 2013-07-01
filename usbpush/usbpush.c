@@ -6,6 +6,11 @@
  * would say "Error downloading program" when in fact there was none. Code cleanup.
  * 11/10/09 by Dario Vazquez <android_04@hotmail.com>
  *
+ * Modified to make it modular enough to support all boards with the same
+ * protocol. Endpoint/chunksize/vendor/product variables can be passed via
+ * command line. This is to support OrigenBoard.
+ * 2013-07-01 by Wojciech A. Koszek <wkoszek@FreeBSD.org>
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 
  *  as published by the Free Software Foundation
@@ -30,32 +35,46 @@
  * up the device.
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include <fcntl.h>
 
 #include <usb.h>
 
-#define QT2410_VENDOR_ID	0x5345
-#define QT2410_PRODUCT_ID	0x1234
-#define QT2410_OUT_EP		0x03
-#define QT2410_IN_EP		0x81
+/*
+ * Default variables (set for QT2410 to keep backward compatibility with
+ * original usbpush.c
+ */
+#define DEFAULT_VENDOR_ID	0x5345
+#define DEFAULT_PRODUCT_ID	0x1234
+#define DEFAULT_OUT_EP		0x03
+#define DEFAULT_IN_EP		0x81
+#define KERNEL_RAM_BASE		0x30000000
+
+static u_int16_t	g_vendor_id = DEFAULT_VENDOR_ID;
+static u_int16_t	g_prod_id = DEFAULT_PRODUCT_ID;
+static u_int32_t	g_out_ep = DEFAULT_OUT_EP;
+static u_int32_t	g_ram_base = KERNEL_RAM_BASE;
+static char		*g_fnptr = NULL;
+static int		g_chunk_size = 100;
 
 static struct usb_dev_handle *hdl;
 
-static struct usb_device *find_qt2410_device(void)
+static struct usb_device *find_device(void)
 {
 	struct usb_bus *bus;
 
 	for (bus = usb_busses; bus; bus = bus->next) {
 		struct usb_device *dev;
 		for (dev = bus->devices; dev; dev = dev->next) {
-			if (dev->descriptor.idVendor == QT2410_VENDOR_ID
-			    && dev->descriptor.idProduct == QT2410_PRODUCT_ID
+			if (dev->descriptor.idVendor == g_vendor_id
+			    && dev->descriptor.idProduct == g_prod_id
 			    && dev->descriptor.iManufacturer == 1
 			    && dev->descriptor.iProduct == 2
 			    && dev->descriptor.bNumConfigurations == 1
@@ -68,7 +87,7 @@ static struct usb_device *find_qt2410_device(void)
 }
 
 
-static u_int16_t qt2410_csum(const unsigned char *data, u_int32_t len)
+static u_int16_t dev_csum(const unsigned char *data, u_int32_t len)
 {
 	u_int16_t csum = 0;
 	int j;
@@ -80,12 +99,11 @@ static u_int16_t qt2410_csum(const unsigned char *data, u_int32_t len)
 	return csum;
 }
 
-#define CHUNK_SIZE 100
-static int qt2410_send_file(u_int32_t addr, void *data, u_int32_t len)
+static int send_file(u_int32_t addr, void *data, u_int32_t len)
 {
 	int ret = 0;
 	unsigned char *buf, *cur;
-	u_int16_t csum = qt2410_csum(data, len);
+	u_int16_t csum = dev_csum(data, len);
 	u_int32_t len_total = len + 10;
 
 	printf("csum = 0x%4x\n", csum);
@@ -114,12 +132,12 @@ static int qt2410_send_file(u_int32_t addr, void *data, u_int32_t len)
 
 	printf("send_file: addr = 0x%08x, len = 0x%08x\n", addr, len);
 
-	for (cur = buf; cur < buf+len_total; cur += CHUNK_SIZE) {
+	for (cur = buf; cur < buf+len_total; cur += g_chunk_size) {
 		int remain = (buf + len_total) - cur;
-		if (remain > CHUNK_SIZE)
-			remain = CHUNK_SIZE;
+		if (remain > g_chunk_size)
+			remain = g_chunk_size;
 
-		ret = usb_bulk_write(hdl, QT2410_OUT_EP, cur, remain, 0);
+		ret = usb_bulk_write(hdl, g_out_ep, cur, remain, 0);
 		if (ret < 0)
 			break;
 	}
@@ -129,22 +147,61 @@ static int qt2410_send_file(u_int32_t addr, void *data, u_int32_t len)
 	return ret;
 }
 
-#define KERNEL_RAM_BASE		0x30000000
+static void
+usage(void)
+{
 
-int main(int argc, char **argv)
+	fprintf(stderr, "Usage:\n");
+	fprintf(stderr,
+		"\tusbpush [-a addr] [-e endpoint] [-v vendor_id] "
+			"[-p product_id] -f filename\n\n"
+		"Example for OrigenBoard:\n"
+			"\tusbpush -e 2 -v 0x04e8 -p 0x001234 "
+			"-a 0x40008000 -f <file>\n"
+	);
+	exit(64);
+}
+
+int
+main(int argc, char **argv)
 {
 	struct usb_device *dev;
 	char *filename, *prog;
 	struct stat st;
-	int fd;
-	u_int32_t ram_base;
+	int fd, o;
 
-	/* Check for correct usage */
-	if(argc==1) {
-		printf("Usage: sudo usbpush <filename> [RAM base]\n");
-		printf("Example: sudo usbpush supervivi_2440 0x30008000\n");
-		exit(2);
+	while ((o = getopt(argc, argv, "a:e:f:p:v:")) != -1) {
+		switch (o) {
+		case 'a':
+			g_ram_base = strtol(optarg, NULL, 16);
+			break;
+		case 'e':
+			g_out_ep = strtol(optarg, NULL, 16);
+			break;
+		case 'f':
+			g_fnptr = optarg;
+			break;
+		case 'p':
+			g_prod_id = strtol(optarg, NULL, 16);
+			break;
+		case 'v':
+			g_vendor_id = strtol(optarg, NULL, 16);
+			break;
+		default:
+			abort();
+		}
 	}
+	if (g_fnptr == NULL) {
+		usage();
+	}
+	printf("# Debug info:\n");
+	printf("# filename=%s\n", g_fnptr);
+	printf("# vendor_id=%#08x, product_id=%#08x, ram_base=%#08x, "
+		"endpoint=%08x\n", g_vendor_id, g_prod_id, g_ram_base,
+		g_out_ep);
+
+	argc -= optind;
+	argv += optind;
 
 	/* Initialize and access USB */
 	usb_init();
@@ -153,9 +210,10 @@ int main(int argc, char **argv)
 	if (!usb_find_devices())
 		exit(1);
 
-	dev = find_qt2410_device();
+	dev = find_device();
 	if (!dev) {
-		printf("Cannot find QT2410 device in bootloader mode\n");
+		printf("Cannot find device vendor=%08x, product=%08x in bootloader mode\n",
+			g_vendor_id, g_prod_id);
 		exit(1);
 	}
 
@@ -171,7 +229,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Open file */
-	filename = argv[1];
+	filename = g_fnptr;
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
 		printf("Unable to open file\n");
@@ -183,16 +241,13 @@ int main(int argc, char **argv)
 		exit(2);
 	}
 
-	/* Set RAM base */
-	if(argc==3) ram_base = atof(argv[2]);
-	else ram_base = KERNEL_RAM_BASE;
 
 	/* mmap kernel image passed as parameter */
 	prog = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (!prog)
 		exit(1);
 
-	if (qt2410_send_file(ram_base, prog, st.st_size) < 0) {
+	if (send_file(g_ram_base, prog, st.st_size) < 0) {
 		printf("Error downloading program\n");
 		exit(1);
 	}
