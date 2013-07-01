@@ -1,0 +1,69 @@
+qt2410_boot_usb - QT-2410 USB RAM loader
+(C) 2006 by Harald Welte <hwelte@hmw-consulting.de>
+================================================================
+
+Using this ram loader it is possible to download (and execute) code 
+from the host PC into the SDRAM of a QT-2410 development board.
+
+Use the following steps:
+
+1) power-off QT-2410
+2) put the small dip switch on the CPU "KERNEL" board into setting NOR
+3) connect USB Device port with USB hob of host PC
+3) power-on QT-2410
+4) start the ram loader by running
+
+	loadeboot_usb 0x30008000 /file/to/code
+
+   to download /file/to/code into RAM address 0x30008000
+
+You can watch the progress of the download on the serial port of QT-2410 (115200 bps)
+
+
+Mini2440
+================================================================
+
+1) power-off 
+2) Put the slide switch in the corner to NOR.
+3) connect USB Device port with USB hob of host PC
+3) power-on 
+4) start the ram loader by running
+
+Hit 'q' to get the vivi prompt.
+To load uboot:
+Supervivi> load ram 0x32000000 <size> u
+Where <size> is the size, decimal, in bytes of the uboot bin file
+
+On the PC side:
+sudo ./s3c2410_boot_usb u-boot-XXX.bin
+
+
+Supervivi> load ram 0x32000000 242360 u
+USB host is connected. Waiting a download.
+
+Now, Downloading [ADDRESS:32000000h,TOTAL:242370]
+RECEIVED FILE SIZE:  242370 (236KB/S, 1S)
+Downloaded file at 0x32000000, size = 242360 bytes
+
+Supervivi> go 0x32000000 
+go to 0x32000000
+  argument 0 = 0x00000000
+  argument 1 = 0x00000000
+  argument 2 = 0x00000000
+  argument 3 = 0x00000000
+
+U-Boot 1.3.2-mini2440 (Feb 24 2010 - 13:04:49)
+
+I2C:   ready
+DRAM:  64 MB
+Flash:  2 MB
+NAND:  1024 MiB
+Found Environment offset in OOB..
+USB:   S3C2410 USB Deviced
+In:    serial
+Out:   serial
+Err:   serial
+MAC: 00:00:ff:00:00:02
+Hit any key to stop autoboot:  0 
+MINI2440 # 
+

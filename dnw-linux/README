@@ -1,0 +1,82 @@
+http://code.google.com/p/dnw-linux/
+
+
+**************This code is based on the code from internet,
+**************but I do not know where it is from. If it's yours
+**************and think I have damaged your interests, please
+**************let me know. 
+**************contact: Du, Changbin <changbin.du@gmail.com>
+
+1. build and install
+=====================
+	$ make
+	$ sudo make install
+
+2. dnw tool usage 
+=====================
+Connect board to PC and open minicom. Boot board and enter U-Boot command line mode.
+Then run command "dnw <download address>" in U-Boot. U-Boot may print bellow message:
+	Insert a OTG cable into the connector!
+	OTG cable Connected!
+	Now, Waiting for DNW to transmit data
+
+Now, you can download your file to board by follow command on PC end:
+	$ sudo dnw <file_to_download>
+
+Note: If your board isn't FL Ok6410, please set right load-address via "a" option.
+      Above steps have only download file to board's RAM, so you need  flash
+      it to nand via U-Boot command "nand write".
+
+If above doesn't work, pls check if you can see bellow message in `dmesg`.
+	usb 1-1: new full speed USB device using uhci_hcd and address 2
+	usb 1-1: configuration #1 chosen from 1 choice
+	secbulk:secbulk probing...
+	secbulk:bulk out endpoint found!
+
+===============================================
+some U-Boot commands special for FL Ok6410
+   (1) download U-Boot
+	$dnw 50008000
+	$nand erase 0 100000
+	$nand write.uboot 50008000 0 100000
+	#dnw default load address is 0xc0000000
+	all in one:
+	$dnw 50008000 && nand erase 0 100000 && nand write.uboot 50008000 0 100000
+   (2) download kernel
+	$dnw 50008000
+	$nand erase 100000 500000
+	$nand write.e 50008000 100000 500000
+	all in one:
+	$dnw 50008000 && nand erase 100000 500000 && nand write.e 50008000 100000 500000
+   (3) download yaffs2 root file system
+	$dnw 50008000
+	$nand erase 600000 #erase mtdblock2 partition
+	$nand write.yaffs2 50008000 600000 8000000 #instead 8000000 of real image size
+	all in one:
+	$dnw 50008000 && nand erase 600000 && nand write.yaffs2 50008000 600000 8000000
+   (4) download ubifs/cramfs root file system
+	$dnw 50008000
+	$nand erase 600000 #erase mtdblock2 partition
+	$nand write.e 50008000 600000 8000000 #instead 8000000 of real image size
+	all in one:
+	$dnw 50008000 && nand erase 600000 && nand write.e 50008000 600000 8000000
+   (5) download jffs2 root file system
+	$dnw 50008000
+	$nand erase 600000 #erase mtdblock2 partition
+	$nand write.jffs2 50008000 600000 8000000 #instead 8000000 of real image size
+	all in one:
+	$dnw 50008000 && nand erase 600000 && nand write.jffs2 50008000 600000 8000000
+   (6) deal with bad blocks
+	$nand scrub
+   (7) set kernel arguments
+	$setenv bootargs "root=/dev/mtdblock2 rootfstype=yaffs2 console=ttySAC0,115200" 
+	$save
+	$reset
+   (8) boot from NFS
+	$setenv bootargs "root=/dev/nfs nfsroot=192.168.0.231:/FileSystem-Yaffs2 \
+	 ip=192.168.0.232:192.168.0.231:192.168.0.201:255.255.255.0:8.8.8.8:eth0:off \
+	 console=ttySAC0,115200"
+	$save
+	# "192.168.0.231" is your host ip; "192.168.0.232" is your board's ip;
+	# "192.168.0.201" is gateway; "255.255.255.0" is mask.
+
