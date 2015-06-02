@@ -102,7 +102,7 @@ static u_int16_t dev_csum(const unsigned char *data, u_int32_t len)
 static int send_file(u_int32_t addr, void *data, u_int32_t len)
 {
 	int ret = 0;
-	unsigned char *buf, *cur;
+	char *buf, *cur;
 	u_int16_t csum = dev_csum(data, len);
 	u_int32_t len_total = len + 10;
 
