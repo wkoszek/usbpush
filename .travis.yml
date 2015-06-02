@@ -1,0 +1,8 @@
+before_script: apt-get install -y libusb-dev
+script: cd usbpush && make
+language: c
+compiler:
+        - clang
+        - gcc
+os:
+        - linux
