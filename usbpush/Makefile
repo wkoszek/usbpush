@@ -7,7 +7,7 @@ clean:
 	-rm -f *.o usbpush
 
 usbpush: usbpush.o
-	$(CC) $(LDFLAGS) -o $@ $<
+	$(CC) -o $@ $< $(LDFLAGS) 
 
 usbpush.o: usbpush.c
 	$(CC) $(CFLAGS) -o $@ -c $<
