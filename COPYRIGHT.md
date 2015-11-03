@@ -1,4 +1,4 @@
-Copyright (c) 2015, Wojciech Adam Koszek <wojciech@koszek.com>
+Copyright (c) 2013-2015, Wojciech Adam Koszek <wojciech@koszek.com>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
