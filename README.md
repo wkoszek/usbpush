@@ -1,5 +1,5 @@
-usbpush
-=======
+# usbpush for DNW protocol
+
 
 USBpush program for "DNW" U-boot protocol support in
 FriendlyARM/QT2410/OrigenBoard boards. It will let you upload data to the
@@ -14,8 +14,7 @@ I used following release from InSignal's forum:
 
 	141037562 Jun 28 19:08 origen_quad-jb_mr1.1-20130625-es2.tar.gz
 
-Usage
-=====
+# Usage
 
 Following is the usage of `usbpush`:
 
@@ -37,15 +36,13 @@ Example for OrigenBoard:
 
 	usbpush -e 2 -v 0x04e8 -p 0x001234 -a 0x40008000 -f <file>
 
-This directory
-==============
+# This directory
 
 `usbpush/` directory contains `usbpush` program. The other directories
 aren't supported and are here just for backward compatibility and to be able
 to compare differences from the original release.
 
-Use case
-========
+# Use case
 
 In U-boot:
 
