@@ -1,5 +1,6 @@
 # usbpush for DNW protocol
 
+[![Build Status](https://travis-ci.org/wkoszek/usbpush.svg?branch=master)](https://travis-ci.org/wkoszek/usbpush)
 
 USBpush program for "DNW" U-boot protocol support in
 FriendlyARM/QT2410/OrigenBoard boards. It will let you upload data to the
